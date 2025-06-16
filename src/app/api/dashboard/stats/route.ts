@@ -107,13 +107,13 @@ export async function GET() {
       
       // Crecimiento de pacientes (últimos 6 meses)
       prisma.$queryRaw`
-        SELECT 
-          strftime('%Y-%m', createdAt) as month,
-          COUNT(*) as count
-        FROM patients 
-        WHERE createdAt >= date('now', '-6 months')
-        GROUP BY strftime('%Y-%m', createdAt)
-        ORDER BY month ASC
+  SELECT 
+    to_char("createdAt", 'YYYY-MM') as month,
+    COUNT(*) as count
+  FROM "Patient" 
+  WHERE "createdAt" >= NOW() - INTERVAL '6 months'
+  GROUP BY to_char("createdAt", 'YYYY-MM')
+  ORDER BY month ASC
       `
     ])
 
