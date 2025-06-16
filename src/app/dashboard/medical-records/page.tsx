@@ -3,7 +3,16 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Search, FileText, Calendar, User, Heart, Thermometer, Weight, Activity, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import RoleGuard from '@/components/RoleGuard'
+import dynamic from 'next/dynamic'
+
+const RoleGuard = dynamic(() => import('@/components/RoleGuard'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  )
+})
 
 interface Patient {
   id: string

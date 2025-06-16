@@ -7,4 +7,127 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// El resto del schema exactamente igual que tienes...
+// Tabla de Configuración del Sistema
+model SystemConfig {
+  id              String   @id @default("system")
+  doctorName      String   @default("Dr. Juan Pérez")
+  clinicName      String   @default("Sistema Médico")
+  doctorSpecialty String?  @default("Medicina General")
+  doctorPhone     String?  @default("+52 81 1234 5678")
+  doctorEmail     String?  @default("doctor@ejemplo.com")
+  clinicAddress   String?
+  clinicLogo      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+// Tabla de Usuarios del Sistema (Médicos y Asistentes)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hash de la contraseña
+  name      String
+  role      String   // "doctor" o "assistant"
+  specialty String?  // Solo para doctores
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  sessions            Session[]
+  appointments        Appointment[] @relation("DoctorAppointments")
+  createdAppointments Appointment[] @relation("AppointmentCreator")
+  patients            Patient[]
+  medicalRecords      MedicalRecord[]
+
+  @@map("users")
+}
+
+// Tabla de Sesiones
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Tabla de Pacientes
+model Patient {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String
+  dateOfBirth DateTime
+  createdAt   DateTime @default(now())
+
+  // Relaciones
+  doctorId       String
+  doctor         User @relation(fields: [doctorId], references: [id])
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+
+  @@map("patients")
+}
+
+// Tabla de Citas
+model Appointment {
+  id        String   @id @default(cuid())
+  date      DateTime
+  reason    String
+  status    String   @default("scheduled")
+  notes     String?
+  createdAt DateTime @default(now())
+  createdBy String   // Usuario que creó la cita
+
+  // Relaciones
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+  doctorId  String
+  doctor    User    @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  creator   User    @relation("AppointmentCreator", fields: [createdBy], references: [id])
+  
+  medicalRecord MedicalRecord?
+
+  @@map("appointments")
+}
+
+// Tabla de Historiales Médicos
+model MedicalRecord {
+  id             String   @id @default(cuid())
+  chiefComplaint String   // Motivo de consulta
+  symptoms       String?  // Síntomas
+  diagnosis      String?  // Diagnóstico
+  treatment      String?  // Tratamiento
+  prescription   String?  // Receta médica
+  notes          String?  // Notas adicionales
+  followUpDate   DateTime? // Fecha de seguimiento
+  
+  // Signos vitales
+  bloodPressure  String?  // Presión arterial
+  heartRate      Int?     // Frecuencia cardíaca
+  temperature    Float?   // Temperatura
+  weight         Float?   // Peso
+  height         Float?   // Altura
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  patientId     String
+  patient       Patient @relation(fields: [patientId], references: [id])
+  doctorId      String
+  doctor        User    @relation(fields: [doctorId], references: [id])
+  appointmentId String? @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@map("medical_records")
+}
