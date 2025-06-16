@@ -1,18 +1,16 @@
-// Archivo: src/middleware.ts
-
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Rutas públicas que no requieren autenticación
+  // Rutas completamente públicas
   const publicPaths = [
     '/login',
     '/api/auth/login',
     '/api/auth/logout',
-    '/api/debug/login',      // ← AGREGAR ESTA LÍNEA
-  '/api/test-auth',        // ← AGREGAR ESTA LÍNEA
+    '/api/debug/login',
+    '/api/test-auth',
     '/_next',
     '/favicon.ico'
   ]
@@ -27,11 +25,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Verificar si hay token de sesión (validación básica)
+  // Verificar token de sesión
   const token = request.cookies.get('session-token')?.value
 
   if (!token) {
-    // No hay token, redirigir a login
+    // Si es una request a API, devolver 401
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    
+    // Si es una página, redirigir a login
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -41,13 +44,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Proteger todas las rutas excepto:
-     * - api/auth (rutas de autenticación)
-     * - _next/static (archivos estáticos)
-     * - _next/image (optimización de imágenes)
-     * - favicon.ico
-     */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|api/debug|api/test-auth|_next/static|_next/image|favicon.ico).*)',
   ],
 }
