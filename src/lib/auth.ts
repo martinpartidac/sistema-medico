@@ -1,6 +1,6 @@
 // Archivo: src/lib/auth.ts
 
-import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import { prisma } from './prisma'
 import { NextRequest } from 'next/server'
 
