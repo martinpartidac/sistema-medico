@@ -11,6 +11,8 @@ export async function middleware(request: NextRequest) {
     '/login',
     '/api/auth/login',
     '/api/auth/logout',
+    '/api/debug/login',      // ← AGREGAR ESTA LÍNEA
+  '/api/test-auth',        // ← AGREGAR ESTA LÍNEA
     '/_next',
     '/favicon.ico'
   ]
