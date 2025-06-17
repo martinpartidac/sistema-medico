@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Calendar, Clock, User, Phone, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
-import { getDateInputValue, formatMexicoDate, formatMexicoTime } from '@/lib/dateUtils'
+import { getDateInputValue } from '@/lib/dateUtils'
+import SmartAppointmentForm from '@/components/SmartAppointmentForm'
 
 interface Patient {
   id: string
@@ -24,22 +25,11 @@ interface Appointment {
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
   // Usar la función corregida para obtener la fecha de hoy en México
   const [selectedDate, setSelectedDate] = useState(getDateInputValue())
-  const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
-
-  // Form state
-  const [formData, setFormData] = useState({
-    patientId: '',
-    date: '',
-    time: '',
-    reason: '',
-    notes: ''
-  })
 
   // Fetch appointments con filtro de fecha
   const fetchAppointments = async (dateFilter?: string) => {
@@ -58,77 +48,26 @@ export default function AppointmentsPage() {
       }
     } catch (error) {
       console.error('Error fetching appointments:', error)
-    }
-  }
-
-  // Fetch patients
-  const fetchPatients = async () => {
-    try {
-      const response = await fetch('/api/patients')
-      if (response.ok) {
-        const data = await response.json()
-        setPatients(data)
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchPatients()
-  }, [])
-
-  // Fetch appointments cuando cambia la fecha seleccionada
-  useEffect(() => {
-    if (selectedDate) {
-      fetchAppointments(selectedDate)
-    }
+    fetchAppointments(selectedDate)
   }, [selectedDate])
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    try {
-      console.log('Enviando datos de cita:', formData)
+  // Handle appointment form submission
+  const handleAppointmentSubmit = async (success: boolean) => {
+    if (success) {
+      // Refresh appointments and close form
+      await fetchAppointments(selectedDate)
+      setShowForm(false)
+      setEditingAppointment(null)
       
-      const url = editingAppointment ? `/api/appointments/${editingAppointment.id}` : '/api/appointments'
-      const method = editingAppointment ? 'PUT' : 'POST'
-      
-      // Enviar date y time por separado para mejor control
-      const payload = {
-        patientId: formData.patientId,
-        date: formData.date, // YYYY-MM-DD
-        time: formData.time, // HH:MM
-        reason: formData.reason,
-        notes: formData.notes,
-      }
-      
-      console.log('Payload enviado:', payload)
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (response.ok) {
-        await fetchAppointments(selectedDate)
-        setShowForm(false)
-        setEditingAppointment(null)
-        setFormData({ patientId: '', date: '', time: '', reason: '', notes: '' })
-      } else {
-        const errorData = await response.json()
-        console.error('Error creating appointment:', errorData)
-        alert('Error al crear la cita: ' + (errorData.error || 'Error desconocido'))
-      }
-    } catch (error) {
-      console.error('Error saving appointment:', error)
-      alert('Error de conexión al guardar la cita')
+      // Show success message
+      // TODO: Implement toast notification system
+      console.log('Cita guardada exitosamente')
     }
   }
 
@@ -148,15 +87,7 @@ export default function AppointmentsPage() {
 
   // Handle edit
   const handleEdit = (appointment: Appointment) => {
-    const appointmentDate = new Date(appointment.date)
     setEditingAppointment(appointment)
-    setFormData({
-      patientId: appointment.patient.id,
-      date: appointmentDate.toISOString().split('T')[0],
-      time: appointmentDate.toTimeString().slice(0, 5),
-      reason: appointment.reason,
-      notes: appointment.notes || ''
-    })
     setShowForm(true)
   }
 
@@ -233,13 +164,7 @@ export default function AppointmentsPage() {
             </div>
             <button
               onClick={() => {
-                setFormData({
-                  patientId: '',
-                  date: selectedDate,
-                  time: '09:00',
-                  reason: '',
-                  notes: ''
-                })
+                setEditingAppointment(null)
                 setShowForm(true)
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
@@ -288,10 +213,23 @@ export default function AppointmentsPage() {
                 />
               </div>
             </div>
-            
-            {/* Debug info */}
-            <div className="mt-2 text-xs text-gray-500">
-              Debug: Fecha seleccionada: {selectedDate} | Total citas: {appointments.length}
+          </div>
+
+          {/* Info Card */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-900">
+                  💡 Nueva funcionalidad mejorada
+                </h3>
+                <p className="text-sm text-blue-800 mt-1">
+                  Ahora puedes crear citas <strong>sin necesidad de registrar al paciente primero</strong>. 
+                  El sistema te permite buscar pacientes existentes o crear uno nuevo durante el proceso de agendar.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -306,21 +244,16 @@ export default function AppointmentsPage() {
               {appointments.length === 0 ? (
                 <div className="px-6 py-8 text-center text-gray-500">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No hay citas programadas para este día</p>
-                  <p className="text-sm text-gray-400 mt-1">Fecha: {selectedDate}</p>
+                  <p className="text-lg font-medium mb-2">No hay citas programadas para este día</p>
+                  <p className="text-sm text-gray-400 mb-4">Fecha: {formatDateDisplay(selectedDate)}</p>
                   <button
                     onClick={() => {
-                      setFormData({
-                        patientId: '',
-                        date: selectedDate,
-                        time: '09:00',
-                        reason: '',
-                        notes: ''
-                      })
+                      setEditingAppointment(null)
                       setShowForm(true)
                     }}
-                    className="mt-2 text-blue-600 hover:text-blue-800"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
                   >
+                    <Plus className="h-4 w-4 mr-2" />
                     Programar primera cita
                   </button>
                 </div>
@@ -364,10 +297,6 @@ export default function AppointmentsPage() {
                                     {appointment.notes}
                                   </p>
                                 )}
-                                {/* Debug info */}
-                                <p className="text-xs text-gray-400">
-                                  Debug: {appointment.date}
-                                </p>
                               </div>
                             </div>
                           </div>
@@ -375,13 +304,15 @@ export default function AppointmentsPage() {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleEdit(appointment)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 hover:text-blue-900 p-1"
+                            title="Editar cita"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(appointment.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 p-1"
+                            title="Eliminar cita"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -396,101 +327,17 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
-      {/* Modal Form */}
+      {/* Smart Appointment Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingAppointment ? 'Editar Cita' : 'Nueva Cita'}
-              </h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-1">Paciente</label>
-                  <select
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={formData.patientId}
-                    onChange={(e) => setFormData({...formData, patientId: e.target.value})}
-                  >
-                    <option value="">Seleccionar paciente</option>
-                    {patients.map((patient) => (
-                      <option key={patient.id} value={patient.id}>
-                        {patient.firstName} {patient.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-1">Fecha</label>
-                  <input
-                    type="date"
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={formData.date}
-                    onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-1">Hora</label>
-                  <input
-                    type="time"
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={formData.time}
-                    onChange={(e) => setFormData({...formData, time: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-1">Motivo de la consulta</label>
-                  <input
-                    type="text"
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={formData.reason}
-                    onChange={(e) => setFormData({...formData, reason: e.target.value})}
-                    placeholder="Ej: Consulta general, revisión, etc."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-1">Notas (opcional)</label>
-                  <textarea
-                    rows={3}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    placeholder="Observaciones adicionales..."
-                  />
-                </div>
-                
-                {/* Debug info en el form */}
-                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                  Debug: Fecha={formData.date}, Hora={formData.time}
-                </div>
-                
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false)
-                      setEditingAppointment(null)
-                      setFormData({ patientId: '', date: '', time: '', reason: '', notes: '' })
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
-                  >
-                    {editingAppointment ? 'Actualizar' : 'Crear'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <SmartAppointmentForm
+          selectedDate={selectedDate}
+          onSubmit={handleAppointmentSubmit}
+          onCancel={() => {
+            setShowForm(false)
+            setEditingAppointment(null)
+          }}
+          editingAppointment={editingAppointment}
+        />
       )}
     </div>
   )
