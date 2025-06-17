@@ -1,4 +1,5 @@
 // Archivo: src/components/SmartAppointmentForm.tsx
+// REEMPLAZA COMPLETAMENTE el archivo anterior con este
 
 'use client'
 
@@ -301,7 +302,7 @@ export default function SmartAppointmentForm({
                     </div>
                     <input
                       type="text"
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Buscar paciente por nombre o teléfono..."
                       value={searchTerm}
                       onChange={(e) => {
@@ -323,7 +324,7 @@ export default function SmartAppointmentForm({
                           className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                         >
                           <div className="flex justify-between">
-                            <span className="font-medium">
+                            <span className="font-medium text-gray-900">
                               {patient.firstName} {patient.lastName}
                             </span>
                             <span className="text-sm text-gray-500">
@@ -374,7 +375,7 @@ export default function SmartAppointmentForm({
                       <input
                         type="text"
                         required={showNewPatientForm}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newPatientData.firstName}
                         onChange={(e) => setNewPatientData({...newPatientData, firstName: e.target.value})}
                         placeholder="Nombre"
@@ -385,7 +386,7 @@ export default function SmartAppointmentForm({
                       <input
                         type="text"
                         required={showNewPatientForm}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newPatientData.lastName}
                         onChange={(e) => setNewPatientData({...newPatientData, lastName: e.target.value})}
                         placeholder="Apellido"
@@ -396,7 +397,7 @@ export default function SmartAppointmentForm({
                       <input
                         type="tel"
                         required={showNewPatientForm}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newPatientData.phone}
                         onChange={(e) => setNewPatientData({...newPatientData, phone: e.target.value})}
                         placeholder="81-1234-5678"
@@ -406,7 +407,7 @@ export default function SmartAppointmentForm({
                       <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                       <input
                         type="email"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newPatientData.email}
                         onChange={(e) => setNewPatientData({...newPatientData, email: e.target.value})}
                         placeholder="email@ejemplo.com"
@@ -417,7 +418,7 @@ export default function SmartAppointmentForm({
                       <input
                         type="date"
                         required={showNewPatientForm}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newPatientData.dateOfBirth}
                         onChange={(e) => setNewPatientData({...newPatientData, dateOfBirth: e.target.value})}
                       />
@@ -440,7 +441,7 @@ export default function SmartAppointmentForm({
                   <input
                     type="date"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={appointmentData.date}
                     onChange={(e) => setAppointmentData({...appointmentData, date: e.target.value})}
                   />
@@ -450,7 +451,7 @@ export default function SmartAppointmentForm({
                   <input
                     type="time"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={appointmentData.time}
                     onChange={(e) => setAppointmentData({...appointmentData, time: e.target.value})}
                   />
@@ -462,7 +463,7 @@ export default function SmartAppointmentForm({
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={appointmentData.reason}
                   onChange={(e) => setAppointmentData({...appointmentData, reason: e.target.value})}
                   placeholder="Ej: Consulta general, revisión, dolor de cabeza..."
@@ -473,7 +474,7 @@ export default function SmartAppointmentForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
                 <textarea
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={appointmentData.notes}
                   onChange={(e) => setAppointmentData({...appointmentData, notes: e.target.value})}
                   placeholder="Observaciones adicionales..."
