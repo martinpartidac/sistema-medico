@@ -5,6 +5,7 @@ import { Calendar, Users, UserPlus, Activity, Clock, FileText, TrendingUp, LogOu
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import RoleGuard from '@/components/RoleGuard'
+import { getMexicoDate, formatMexicoTime, formatMexicoDate } from '@/lib/dateUtils'
 
 interface DashboardStats {
   totalPatients: number
@@ -35,10 +36,16 @@ interface DashboardStats {
       phone: string
     }
   }>
-  patientsGrowthData: Array<{
-    month: string
-    patients: number
-  }>
+  debug?: {
+    todayStart: string
+    todayEnd: string
+    appointmentsTodayCount: number
+    appointmentsTodayList: Array<{
+      patient: string
+      date: string
+      reason: string
+    }>
+  }
 }
 
 export default function Dashboard() {
@@ -64,6 +71,7 @@ export default function Dashboard() {
         
         if (statsResponse.ok) {
           const statsData = await statsResponse.json()
+          console.log('Dashboard stats recibidas:', statsData)
           setStats(statsData)
         }
         
@@ -94,14 +102,17 @@ export default function Dashboard() {
   }
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('es-ES', {
+    return new Date(dateString).toLocaleTimeString('es-MX', {
+      timeZone: 'America/Monterrey',
       hour: '2-digit',
       minute: '2-digit'
     })
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES')
+    return new Date(dateString).toLocaleDateString('es-MX', {
+      timeZone: 'America/Monterrey'
+    })
   }
 
   if (loading) {
@@ -160,6 +171,29 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {/* Debug Info temporal */}
+          {stats?.debug && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-medium text-yellow-800 mb-2">
+                🐛 Debug: Información de Fechas (temporal)
+              </h3>
+              <div className="text-xs text-yellow-700 space-y-1">
+                <p><strong>Fecha actual México:</strong> {getMexicoDate().toLocaleString('es-MX')}</p>
+                <p><strong>Rango de búsqueda hoy:</strong></p>
+                <p className="ml-4">Inicio: {new Date(stats.debug.todayStart).toLocaleString('es-MX')}</p>
+                <p className="ml-4">Fin: {new Date(stats.debug.todayEnd).toLocaleString('es-MX')}</p>
+                <p><strong>Citas encontradas hoy:</strong> {stats.debug.appointmentsTodayCount}</p>
+                {stats.debug.appointmentsTodayList.length > 0 && (
+                  <div className="ml-4 space-y-1">
+                    {stats.debug.appointmentsTodayList.map((apt, i) => (
+                      <p key={i}>• {apt.patient} - {new Date(apt.date).toLocaleString('es-MX')} - {apt.reason}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white overflow-hidden shadow rounded-lg">
               <div className="p-5">

@@ -2,19 +2,35 @@
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { 
+  getTodayStartMexico, 
+  getTodayEndMexico, 
+  getMexicoDate 
+} from '@/lib/dateUtils'
 
 export async function GET() {
   try {
-    // Fechas para calcular rangos
-    const today = new Date()
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+    // Fechas corregidas para México
+    const today = getMexicoDate()
+    const startOfDay = getTodayStartMexico()
+    const endOfDay = getTodayEndMexico()
     
+    // Inicio de la semana en México
     const startOfWeek = new Date(today)
-    startOfWeek.setDate(today.getDate() - today.getDay())
+    const dayOfWeek = startOfWeek.getDay()
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1 // Lunes como inicio de semana
+    startOfWeek.setDate(today.getDate() - daysToSubtract)
     startOfWeek.setHours(0, 0, 0, 0)
     
+    // Inicio del mes en México
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    console.log('=== DEBUG DASHBOARD STATS ===')
+    console.log('Fecha actual México:', today.toISOString())
+    console.log('Inicio del día:', startOfDay.toISOString())
+    console.log('Fin del día:', endOfDay.toISOString())
+    console.log('Inicio de semana:', startOfWeek.toISOString())
 
     // Consultas paralelas para optimizar rendimiento
     const [
@@ -25,17 +41,17 @@ export async function GET() {
       appointmentsByStatus,
       recentMedicalRecords,
       upcomingAppointments,
-      patientsGrowthData
+      appointmentsTodayDetails
     ] = await Promise.all([
       // Total de pacientes
       prisma.patient.count(),
       
-      // Citas de hoy
+      // Citas de hoy (corregido)
       prisma.appointment.count({
         where: {
           date: {
             gte: startOfDay,
-            lt: endOfDay
+            lte: endOfDay
           }
         }
       }),
@@ -87,7 +103,7 @@ export async function GET() {
         take: 5,
         where: {
           date: {
-            gte: new Date()
+            gte: startOfDay // Desde hoy en adelante
           },
           status: 'scheduled'
         },
@@ -104,29 +120,34 @@ export async function GET() {
           date: 'asc'
         }
       }),
-      
-      // Crecimiento de pacientes (últimos 6 meses)
-      prisma.$queryRaw`
-        SELECT 
-          strftime('%Y-%m', createdAt) as month,
-          COUNT(*) as count
-        FROM patients 
-        WHERE createdAt >= date('now', '-6 months')
-        GROUP BY strftime('%Y-%m', createdAt)
-        ORDER BY month ASC
-      `
+
+      // Debug: obtener citas de hoy con detalles
+      prisma.appointment.findMany({
+        where: {
+          date: {
+            gte: startOfDay,
+            lte: endOfDay
+          }
+        },
+        include: {
+          patient: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        },
+        orderBy: {
+          date: 'asc'
+        }
+      })
     ])
 
-    // Procesar datos de crecimiento para el gráfico
-    const monthNames = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-    ]
-
-    const processedGrowthData = (patientsGrowthData as any[]).map(item => ({
-      month: monthNames[parseInt(item.month.split('-')[1]) - 1] + ' ' + item.month.split('-')[0],
-      patients: parseInt(item.count)
-    }))
+    // Debug: mostrar citas de hoy
+    console.log(`Citas de hoy encontradas: ${appointmentsTodayDetails.length}`)
+    appointmentsTodayDetails.forEach((apt, index) => {
+      console.log(`${index + 1}. ${apt.patient.firstName} ${apt.patient.lastName} - ${apt.date.toISOString()} - ${apt.reason}`)
+    })
 
     // Formatear datos de estados de citas
     const appointmentStatusData = appointmentsByStatus.map(item => ({
@@ -145,8 +166,24 @@ export async function GET() {
       appointmentStatusData,
       recentMedicalRecords,
       upcomingAppointments,
-      patientsGrowthData: processedGrowthData
+      // Información de debug
+      debug: {
+        todayStart: startOfDay.toISOString(),
+        todayEnd: endOfDay.toISOString(),
+        appointmentsTodayCount: appointmentsTodayDetails.length,
+        appointmentsTodayList: appointmentsTodayDetails.map(apt => ({
+          patient: `${apt.patient.firstName} ${apt.patient.lastName}`,
+          date: apt.date.toISOString(),
+          reason: apt.reason
+        }))
+      }
     }
+
+    console.log('Stats finales:', {
+      totalPatients,
+      appointmentsToday,
+      upcomingAppointments: upcomingAppointments.length
+    })
 
     return NextResponse.json(stats)
   } catch (error) {

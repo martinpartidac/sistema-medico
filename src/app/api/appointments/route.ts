@@ -3,6 +3,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUser } from '@/lib/auth'
+import { 
+  getStartOfDayMexico, 
+  getEndOfDayMexico, 
+  createMexicoDate,
+  getTodayStartMexico,
+  getTodayEndMexico
+} from '@/lib/dateUtils'
 
 // GET - Obtener todas las citas
 export async function GET(request: NextRequest) {
@@ -19,11 +26,13 @@ export async function GET(request: NextRequest) {
     let whereClause = {}
     
     if (date) {
-      const selectedDate = new Date(date)
-      const startOfDay = new Date(selectedDate)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(selectedDate)
-      endOfDay.setHours(23, 59, 59, 999)
+      // Usar las funciones de fecha corregidas para México
+      const startOfDay = getStartOfDayMexico(date)
+      const endOfDay = getEndOfDayMexico(date)
+      
+      console.log(`Filtrando citas para ${date}:`)
+      console.log(`Inicio: ${startOfDay.toISOString()}`)
+      console.log(`Fin: ${endOfDay.toISOString()}`)
       
       whereClause = {
         date: {
@@ -50,6 +59,8 @@ export async function GET(request: NextRequest) {
       }
     })
     
+    console.log(`Encontradas ${appointments.length} citas`)
+    
     return NextResponse.json(appointments)
   } catch (error) {
     console.error('Error fetching appointments:', error)
@@ -71,6 +82,8 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json()
     
+    console.log('Datos recibidos para nueva cita:', data)
+    
     // Buscar doctor (puede ser el usuario actual si es doctor, o el primer doctor disponible)
     let doctorId = user.role === 'doctor' ? user.id : null
     
@@ -89,9 +102,28 @@ export async function POST(request: NextRequest) {
       doctorId = firstDoctor.id
     }
     
+    // Crear la fecha correctamente en zona horaria de México
+    let appointmentDate: Date
+    
+    if (typeof data.date === 'string' && data.date.includes('T')) {
+      // Si ya viene con hora (formato ISO)
+      appointmentDate = new Date(data.date)
+    } else {
+      // Si viene como objeto con date y time separados
+      const dateStr = data.date.split('T')[0] // Asegurar que solo tomamos la fecha
+      const timeStr = data.time || '09:00' // Usar hora por defecto si no viene
+      
+      console.log(`Creando cita para: ${dateStr} a las ${timeStr}`)
+      
+      // Usar la función corregida para crear fecha en México
+      appointmentDate = createMexicoDate(dateStr, timeStr)
+    }
+    
+    console.log('Fecha final de la cita:', appointmentDate.toISOString())
+    
     const appointment = await prisma.appointment.create({
       data: {
-        date: new Date(data.date),
+        date: appointmentDate,
         reason: data.reason,
         notes: data.notes || null,
         patientId: data.patientId,
@@ -110,11 +142,13 @@ export async function POST(request: NextRequest) {
       }
     })
     
+    console.log('Cita creada exitosamente:', appointment.id)
+    
     return NextResponse.json(appointment, { status: 201 })
   } catch (error) {
     console.error('Error creating appointment:', error)
     return NextResponse.json(
-      { error: 'Error al crear cita' },
+      { error: 'Error al crear cita', details: error.message },
       { status: 500 }
     )
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Calendar, Clock, User, Phone, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { getDateInputValue, formatMexicoDate, formatMexicoTime } from '@/lib/dateUtils'
 
 interface Patient {
   id: string
@@ -27,7 +28,8 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  // Usar la función corregida para obtener la fecha de hoy en México
+  const [selectedDate, setSelectedDate] = useState(getDateInputValue())
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
 
   // Form state
@@ -39,12 +41,19 @@ export default function AppointmentsPage() {
     notes: ''
   })
 
-  // Fetch appointments
-  const fetchAppointments = async () => {
+  // Fetch appointments con filtro de fecha
+  const fetchAppointments = async (dateFilter?: string) => {
     try {
-      const response = await fetch('/api/appointments')
+      const url = dateFilter 
+        ? `/api/appointments?date=${dateFilter}`
+        : '/api/appointments'
+      
+      console.log('Fetching appointments for date:', dateFilter || 'all')
+      
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
+        console.log('Appointments received:', data.length)
         setAppointments(data)
       }
     } catch (error) {
@@ -68,41 +77,58 @@ export default function AppointmentsPage() {
   }
 
   useEffect(() => {
-    fetchAppointments()
     fetchPatients()
   }, [])
+
+  // Fetch appointments cuando cambia la fecha seleccionada
+  useEffect(() => {
+    if (selectedDate) {
+      fetchAppointments(selectedDate)
+    }
+  }, [selectedDate])
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     try {
-      const appointmentDateTime = new Date(`${formData.date}T${formData.time}`)
+      console.log('Enviando datos de cita:', formData)
       
       const url = editingAppointment ? `/api/appointments/${editingAppointment.id}` : '/api/appointments'
       const method = editingAppointment ? 'PUT' : 'POST'
+      
+      // Enviar date y time por separado para mejor control
+      const payload = {
+        patientId: formData.patientId,
+        date: formData.date, // YYYY-MM-DD
+        time: formData.time, // HH:MM
+        reason: formData.reason,
+        notes: formData.notes,
+      }
+      
+      console.log('Payload enviado:', payload)
       
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          patientId: formData.patientId,
-          date: appointmentDateTime.toISOString(),
-          reason: formData.reason,
-          notes: formData.notes,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
-        await fetchAppointments()
+        await fetchAppointments(selectedDate)
         setShowForm(false)
         setEditingAppointment(null)
         setFormData({ patientId: '', date: '', time: '', reason: '', notes: '' })
+      } else {
+        const errorData = await response.json()
+        console.error('Error creating appointment:', errorData)
+        alert('Error al crear la cita: ' + (errorData.error || 'Error desconocido'))
       }
     } catch (error) {
       console.error('Error saving appointment:', error)
+      alert('Error de conexión al guardar la cita')
     }
   }
 
@@ -112,7 +138,7 @@ export default function AppointmentsPage() {
       try {
         const response = await fetch(`/api/appointments/${id}`, { method: 'DELETE' })
         if (response.ok) {
-          await fetchAppointments()
+          await fetchAppointments(selectedDate)
         }
       } catch (error) {
         console.error('Error deleting appointment:', error)
@@ -134,12 +160,6 @@ export default function AppointmentsPage() {
     setShowForm(true)
   }
 
-  // Filter appointments by selected date
-  const filteredAppointments = appointments.filter(appointment => {
-    const appointmentDate = new Date(appointment.date).toISOString().split('T')[0]
-    return appointmentDate === selectedDate
-  })
-
   // Navigation functions
   const goToPreviousDay = () => {
     const date = new Date(selectedDate)
@@ -154,11 +174,11 @@ export default function AppointmentsPage() {
   }
 
   const goToToday = () => {
-    setSelectedDate(new Date().toISOString().split('T')[0])
+    setSelectedDate(getDateInputValue())
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
+  const formatDateDisplay = (dateString: string) => {
+    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -166,7 +186,7 @@ export default function AppointmentsPage() {
     })
   }
 
-  const formatTime = (dateString: string) => {
+  const formatTimeDisplay = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {
       hour: '2-digit',
       minute: '2-digit'
@@ -212,7 +232,16 @@ export default function AppointmentsPage() {
               <h1 className="text-2xl font-bold text-gray-900">Agenda de Citas</h1>
             </div>
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setFormData({
+                  patientId: '',
+                  date: selectedDate,
+                  time: '09:00',
+                  reason: '',
+                  notes: ''
+                })
+                setShowForm(true)
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -235,7 +264,7 @@ export default function AppointmentsPage() {
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <h2 className="text-lg font-medium text-gray-900 capitalize">
-                  {formatDate(selectedDate)}
+                  {formatDateDisplay(selectedDate)}
                 </h2>
                 <button
                   onClick={goToNextDay}
@@ -259,6 +288,11 @@ export default function AppointmentsPage() {
                 />
               </div>
             </div>
+            
+            {/* Debug info */}
+            <div className="mt-2 text-xs text-gray-500">
+              Debug: Fecha seleccionada: {selectedDate} | Total citas: {appointments.length}
+            </div>
           </div>
 
           {/* Appointments List */}
@@ -269,12 +303,22 @@ export default function AppointmentsPage() {
             </div>
           ) : (
             <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              {filteredAppointments.length === 0 ? (
+              {appointments.length === 0 ? (
                 <div className="px-6 py-8 text-center text-gray-500">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                   <p>No hay citas programadas para este día</p>
+                  <p className="text-sm text-gray-400 mt-1">Fecha: {selectedDate}</p>
                   <button
-                    onClick={() => setShowForm(true)}
+                    onClick={() => {
+                      setFormData({
+                        patientId: '',
+                        date: selectedDate,
+                        time: '09:00',
+                        reason: '',
+                        notes: ''
+                      })
+                      setShowForm(true)
+                    }}
                     className="mt-2 text-blue-600 hover:text-blue-800"
                   >
                     Programar primera cita
@@ -282,7 +326,7 @@ export default function AppointmentsPage() {
                 </div>
               ) : (
                 <ul className="divide-y divide-gray-200">
-                  {filteredAppointments
+                  {appointments
                     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                     .map((appointment) => (
                     <li key={appointment.id} className="px-6 py-4 hover:bg-gray-50">
@@ -297,7 +341,7 @@ export default function AppointmentsPage() {
                             <div className="flex-1">
                               <div className="flex items-center space-x-2">
                                 <h3 className="text-lg font-medium text-gray-900">
-                                  {formatTime(appointment.date)}
+                                  {formatTimeDisplay(appointment.date)}
                                 </h3>
                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(appointment.status)}`}>
                                   {getStatusText(appointment.status)}
@@ -320,6 +364,10 @@ export default function AppointmentsPage() {
                                     {appointment.notes}
                                   </p>
                                 )}
+                                {/* Debug info */}
+                                <p className="text-xs text-gray-400">
+                                  Debug: {appointment.date}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -414,6 +462,12 @@ export default function AppointmentsPage() {
                     placeholder="Observaciones adicionales..."
                   />
                 </div>
+                
+                {/* Debug info en el form */}
+                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                  Debug: Fecha={formData.date}, Hora={formData.time}
+                </div>
+                
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
