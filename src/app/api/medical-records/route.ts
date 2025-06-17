@@ -1,10 +1,9 @@
 // Archivo: src/app/api/medical-records/route.ts
-// SOLUCIÓN FINAL - Acepta 'reason' del frontend
+// SOLUCIÓN FINAL - Fix relación Prisma
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET - Obtener todos los historiales médicos
 export async function GET() {
   try {
     const records = await prisma.medicalRecord.findMany({
@@ -23,7 +22,6 @@ export async function GET() {
         createdAt: 'desc'
       }
     })
-    
     return NextResponse.json(records)
   } catch (error) {
     console.error('Error fetching medical records:', error)
@@ -34,7 +32,6 @@ export async function GET() {
   }
 }
 
-// POST - Crear nuevo historial médico
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
@@ -47,7 +44,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SOLUCIÓN: Mapear 'reason' a 'chiefComplaint'
+    // Mapear 'reason' a 'chiefComplaint'
     const chiefComplaint = data.reason || data.chiefComplaint
     
     if (!chiefComplaint || !chiefComplaint.trim()) {
@@ -69,10 +66,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear historial médico con el mapeo correcto
+    // SOLUCIÓN: Usar 'connect' para la relación patient
     const record = await prisma.medicalRecord.create({
       data: {
-        chiefComplaint: chiefComplaint.trim(), // ← Usar 'reason' del frontend
+        chiefComplaint: chiefComplaint.trim(),
         symptoms: data.symptoms?.trim() || null,
         diagnosis: data.diagnosis?.trim() || null,
         treatment: data.treatment?.trim() || null,
@@ -84,7 +81,12 @@ export async function POST(request: NextRequest) {
         temperature: data.temperature?.trim() || null,
         weight: data.weight?.trim() || null,
         height: data.height?.trim() || null,
-        patientId: data.patientId
+        // FIX: Conectar paciente explícitamente
+        patient: {
+          connect: {
+            id: data.patientId
+          }
+        }
       },
       include: {
         patient: {
