@@ -1,5 +1,5 @@
 // Archivo: src/app/api/medical-records/route.ts
-// SOLUCIÓN FINAL - Fix relación Prisma
+// SOLUCIÓN FINAL CORRECTA - Doctor opcional
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -15,6 +15,13 @@ export async function GET() {
             lastName: true,
             phone: true,
             dateOfBirth: true
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            specialty: true
           }
         }
       },
@@ -66,28 +73,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SOLUCIÓN: Usar 'connect' para la relación patient
+    // Preparar datos para crear historial
+    const recordData = {
+      chiefComplaint: chiefComplaint.trim(),
+      symptoms: data.symptoms?.trim() || null,
+      diagnosis: data.diagnosis?.trim() || null,
+      treatment: data.treatment?.trim() || null,
+      prescription: data.prescription?.trim() || null,
+      notes: data.notes?.trim() || null,
+      followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
+      bloodPressure: data.bloodPressure?.trim() || null,
+      heartRate: data.heartRate?.trim() || null,
+      temperature: data.temperature?.trim() || null,
+      weight: data.weight?.trim() || null,
+      height: data.height?.trim() || null,
+      patientId: data.patientId,
+      // DOCTOR OPCIONAL - Solo conectar si se proporciona
+      ...(data.doctorId && {
+        doctorId: data.doctorId
+      })
+    }
+
+    // Crear historial médico
     const record = await prisma.medicalRecord.create({
-      data: {
-        chiefComplaint: chiefComplaint.trim(),
-        symptoms: data.symptoms?.trim() || null,
-        diagnosis: data.diagnosis?.trim() || null,
-        treatment: data.treatment?.trim() || null,
-        prescription: data.prescription?.trim() || null,
-        notes: data.notes?.trim() || null,
-        followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
-        bloodPressure: data.bloodPressure?.trim() || null,
-        heartRate: data.heartRate?.trim() || null,
-        temperature: data.temperature?.trim() || null,
-        weight: data.weight?.trim() || null,
-        height: data.height?.trim() || null,
-        // FIX: Conectar paciente explícitamente
-        patient: {
-          connect: {
-            id: data.patientId
-          }
-        }
-      },
+      data: recordData,
       include: {
         patient: {
           select: {
@@ -97,6 +106,13 @@ export async function POST(request: NextRequest) {
             phone: true,
             dateOfBirth: true
           }
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            specialty: true
+          }
         }
       }
     })
@@ -105,7 +121,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating medical record:', error)
     return NextResponse.json(
-      { error: 'Error al crear historial médico' },
+      { 
+        error: 'Error al crear historial médico',
+        details: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
+      },
       { status: 500 }
     )
   }

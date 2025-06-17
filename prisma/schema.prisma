@@ -100,7 +100,7 @@ model Appointment {
   @@map("appointments")
 }
 
-// Tabla de Historiales Médicos
+// Tabla de Historiales Médicos - CORREGIDA ✅
 model MedicalRecord {
   id             String   @id @default(cuid())
   chiefComplaint String   // Motivo de consulta
@@ -113,10 +113,10 @@ model MedicalRecord {
   
   // Signos vitales
   bloodPressure  String?  // Presión arterial
-  heartRate      Int?     // Frecuencia cardíaca
-  temperature    Float?   // Temperatura
-  weight         Float?   // Peso
-  height         Float?   // Altura
+  heartRate      String?  // Frecuencia cardíaca (cambié de Int a String para flexibilidad)
+  temperature    String?  // Temperatura (cambié de Float a String para flexibilidad)
+  weight         String?  // Peso (cambié de Float a String para flexibilidad)
+  height         String?  // Altura (cambié de Float a String para flexibilidad)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -124,8 +124,11 @@ model MedicalRecord {
   // Relaciones
   patientId     String
   patient       Patient @relation(fields: [patientId], references: [id])
-  doctorId      String
-  doctor        User    @relation(fields: [doctorId], references: [id])
+  
+  // CORRECCIÓN: Doctor ahora es OPCIONAL ✅
+  doctorId      String?      // ← Agregué ? para hacerlo opcional
+  doctor        User?        @relation(fields: [doctorId], references: [id]) // ← Agregué ?
+  
   appointmentId String? @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
 
