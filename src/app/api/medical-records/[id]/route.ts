@@ -1,14 +1,11 @@
 // Archivo: src/app/api/medical-records/route.ts
-// Versión con mapeo de campos corregido
+// VERSIÓN DEBUG - Para encontrar el error 500 específico
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET - Obtener todos los historiales médicos
 export async function GET() {
   try {
-    console.log('🔍 GET /api/medical-records - Obteniendo historiales...')
-    
     const records = await prisma.medicalRecord.findMany({
       include: {
         patient: {
@@ -25,11 +22,9 @@ export async function GET() {
         createdAt: 'desc'
       }
     })
-    
-    console.log(`✅ Encontrados ${records.length} historiales médicos`)
     return NextResponse.json(records)
   } catch (error) {
-    console.error('❌ Error fetching medical records:', error)
+    console.error('Error fetching medical records:', error)
     return NextResponse.json(
       { error: 'Error al obtener historiales médicos' },
       { status: 500 }
@@ -37,32 +32,28 @@ export async function GET() {
   }
 }
 
-// POST - Crear nuevo historial médico
 export async function POST(request: NextRequest) {
   try {
-    console.log('📝 POST /api/medical-records - Creando historial...')
+    console.log('🚀 Iniciando POST /api/medical-records')
     
     const data = await request.json()
-    console.log('📋 DATOS COMPLETOS RECIBIDOS:', JSON.stringify(data, null, 2))
+    console.log('📦 Datos recibidos:', JSON.stringify(data, null, 2))
     
-    // Validación de patientId
+    // Validar patientId
     if (!data.patientId) {
-      console.error('❌ PatientId faltante')
+      console.log('❌ PatientId faltante')
       return NextResponse.json(
         { error: 'PatientId es requerido' },
         { status: 400 }
       )
     }
 
-    // Mapeo de campos - aceptar tanto 'reason' como 'chiefComplaint'
-    const chiefComplaint = data.chiefComplaint || data.reason
-    console.log('🔍 Campo motivo de consulta:')
-    console.log('  data.chiefComplaint:', data.chiefComplaint)
-    console.log('  data.reason:', data.reason)
-    console.log('  Resultado final:', chiefComplaint)
-
+    // Mapear 'reason' a 'chiefComplaint'
+    const chiefComplaint = data.reason || data.chiefComplaint
+    console.log('✅ Motivo de consulta mapeado:', chiefComplaint)
+    
     if (!chiefComplaint || !chiefComplaint.trim()) {
-      console.error('❌ Motivo de consulta faltante. Campos disponibles:', Object.keys(data))
+      console.log('❌ Motivo de consulta vacío')
       return NextResponse.json(
         { error: 'Motivo de consulta es requerido' },
         { status: 400 }
@@ -70,39 +61,42 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar que el paciente existe
-    console.log('🔍 Verificando paciente:', data.patientId)
+    console.log('🔍 Buscando paciente:', data.patientId)
     const patient = await prisma.patient.findUnique({
       where: { id: data.patientId }
     })
 
     if (!patient) {
-      console.error('❌ Paciente no encontrado:', data.patientId)
+      console.log('❌ Paciente no encontrado')
       return NextResponse.json(
         { error: 'Paciente no encontrado' },
         { status: 404 }
       )
     }
-    console.log('✅ Paciente encontrado:', patient.firstName, patient.lastName)
+    console.log('✅ Paciente encontrado:', patient.firstName)
 
-    // Crear el historial médico con mapeo flexible
+    // Preparar datos con validación de tipos
+    console.log('💾 Preparando datos para Prisma...')
     const recordData = {
-      chiefComplaint: chiefComplaint.trim(),
-      symptoms: data.symptoms?.trim() || null,
-      diagnosis: data.diagnosis?.trim() || null,
-      treatment: data.treatment?.trim() || null,
-      prescription: data.prescription?.trim() || null,
-      notes: data.notes?.trim() || null,
-      followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
-      bloodPressure: data.bloodPressure?.trim() || null,
-      heartRate: data.heartRate?.trim() || null,
-      temperature: data.temperature?.trim() || null,
-      weight: data.weight?.trim() || null,
-      height: data.height?.trim() || null,
-      patientId: data.patientId
+      chiefComplaint: String(chiefComplaint).trim(),
+      symptoms: data.symptoms ? String(data.symptoms).trim() : null,
+      diagnosis: data.diagnosis ? String(data.diagnosis).trim() : null,
+      treatment: data.treatment ? String(data.treatment).trim() : null,
+      prescription: data.prescription ? String(data.prescription).trim() : null,
+      notes: data.notes ? String(data.notes).trim() : null,
+      followUpDate: data.followUpDate && data.followUpDate.trim() ? new Date(data.followUpDate) : null,
+      bloodPressure: data.bloodPressure ? String(data.bloodPressure).trim() : null,
+      heartRate: data.heartRate ? String(data.heartRate).trim() : null,
+      temperature: data.temperature ? String(data.temperature).trim() : null,
+      weight: data.weight ? String(data.weight).trim() : null,
+      height: data.height ? String(data.height).trim() : null,
+      patientId: String(data.patientId)
     }
 
-    console.log('💾 Datos preparados para Prisma:', JSON.stringify(recordData, null, 2))
-    
+    console.log('💾 Datos finales para crear:', JSON.stringify(recordData, null, 2))
+
+    // Intentar crear el record
+    console.log('🔄 Ejecutando prisma.medicalRecord.create...')
     const record = await prisma.medicalRecord.create({
       data: recordData,
       include: {
@@ -118,40 +112,66 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    console.log('✅ Historial médico creado exitosamente:', record.id)
+    console.log('🎉 Historial creado exitosamente! ID:', record.id)
     return NextResponse.json(record, { status: 201 })
-  } catch (error) {
-    console.error('❌ Error creating medical record:')
-    console.error('Error message:', error?.message)
-    console.error('Error stack:', error?.stack)
-    console.error('Error code:', error?.code)
     
-    // Errores específicos de Prisma
-    if (error?.code === 'P2002') {
+  } catch (error) {
+    console.error('💥 ERROR COMPLETO EN POST:')
+    console.error('💥 Error name:', error.name)
+    console.error('💥 Error message:', error.message)
+    console.error('💥 Error code:', error.code)
+    console.error('💥 Error stack:', error.stack)
+    
+    // Errores específicos de Prisma con más detalle
+    if (error.code === 'P2002') {
+      console.error('💥 Error P2002: Unique constraint violation')
+      console.error('💥 Campos afectados:', error.meta?.target)
       return NextResponse.json(
-        { error: 'Ya existe un historial con estos datos' },
+        { 
+          error: 'Error de duplicado - ya existe un historial con estos datos',
+          details: `Conflicto en campos: ${error.meta?.target?.join(', ') || 'desconocido'}`
+        },
         { status: 409 }
       )
     }
     
-    if (error?.code === 'P2003') {
+    if (error.code === 'P2003') {
+      console.error('💥 Error P2003: Foreign key constraint')
+      console.error('💥 Campo afectado:', error.meta?.field_name)
       return NextResponse.json(
-        { error: 'Error de referencia: paciente no válido' },
+        { 
+          error: 'Error de referencia - ID de paciente no válido',
+          details: `Campo problemático: ${error.meta?.field_name || 'patientId'}`
+        },
         { status: 400 }
       )
     }
 
-    if (error?.code === 'P2025') {
+    if (error.code === 'P2025') {
+      console.error('💥 Error P2025: Record not found')
       return NextResponse.json(
         { error: 'Registro no encontrado' },
         { status: 404 }
       )
     }
 
+    if (error.code?.startsWith('P')) {
+      console.error('💥 Error Prisma genérico:', error.code)
+      return NextResponse.json(
+        { 
+          error: `Error de base de datos: ${error.code}`,
+          details: error.message
+        },
+        { status: 500 }
+      )
+    }
+
+    // Error genérico
     return NextResponse.json(
       { 
-        error: 'Error al crear historial médico',
-        details: process.env.NODE_ENV === 'development' ? error?.message : 'Error interno del servidor'
+        error: 'Error interno del servidor',
+        details: error.message,
+        type: error.name
       },
       { status: 500 }
     )
